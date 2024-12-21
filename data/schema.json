@@ -1,0 +1,14 @@
+{
+  "instructions": [
+    {
+      "instruction": "WRITE A PROGRAM",
+      "baseline_completion": "",
+      "layer_candidates": [
+        {
+          "number": 0,
+          "completion": ""
+        }
+      ]
+    }
+  ]
+}
