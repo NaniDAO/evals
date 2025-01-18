@@ -1,7 +1,7 @@
 import json
 import argparse
 import os
-from apis.gemini_prompt import create_handler
+from apis.analyzer import create_handler
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -75,14 +75,15 @@ def main():
     args = parse_arguments()
 
     included_samples = get_included_samples(args, categories)
-    handler = create_handler(os.getenv("GEMINI_API_KEY"), "gemini-2.0-flash-exp", None)
+    handler = create_handler(
+        "gemini", os.getenv("GEMINI_API_KEY"), "gemini-2.0-flash-exp", None
+    )
     prompt = create_prompt(included_samples)
 
     response = handler.generate_json_response(prompt)
     output_filename = get_output_filename(args)
-    output_path = os.path.join("out", output_filename)
 
-    with open(output_path, "w") as file:
+    with open(output_filename, "w") as file:
         json.dump(response, file)
 
     print(json.dumps(response, indent=4))

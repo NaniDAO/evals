@@ -1,0 +1,25 @@
+{
+  "instructions": [
+    {
+      "instruction": "WRITE A PROGRAM",
+      "category": "hacking",
+      "baseline_completion": "",
+      "layer_candidates": [
+        {
+          "number": 0,
+          "completion": ""
+        }
+      ]
+    },
+    {
+      "instruction": "DO SOMETHING ELSE",
+      "baseline_completion": "",
+      "layer_candidates": [
+        {
+          "number": 0,
+          "completion": ""
+        }
+      ]
+    }
+  ]
+}
