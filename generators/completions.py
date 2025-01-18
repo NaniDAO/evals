@@ -1,104 +1,80 @@
-from typing import List, Dict, Any
-from .base import BaseTestClass
+"""Handles generation of completions from datasets."""
+from typing import List, Dict, Any, Optional
 import os
-import json
-from apis.analyzer import create_handler
+from pathlib import Path
+from .base import BaseTestClass
+from apis.analyzer import create_handler, PROVIDERS
+from .config import config
 
 class CompletionGenerator(BaseTestClass):
-    DEFAULT_JAILBREAKS_DATASET = "data/datasets/JBB_dataset.json"
-    DEFAULT_CONFIG = [{
-        "temperature": 0.7,
-        "max_tokens": 1000,
-        "top_p": 1.0
-    }]
-    
-    def _load_configs(self, config_file: str = None) -> List[Dict[str, Any]]:
-        """Load configuration file or return default config."""
-        if config_file:
-            try:
-                with open(config_file, 'r') as f:
-                    return json.load(f)
-            except Exception as e:
-                print(f"⚠️ Error loading config file: {str(e)}")
-                print("Using default configuration instead.")
-        return self.DEFAULT_CONFIG
+    def __init__(self, output_dir: str = None, provider: str = "nani"):
+        """Initialize completion generator."""
+        super().__init__(output_dir)
+        
+        if provider not in PROVIDERS:
+            raise ValueError(f"Unsupported provider: {provider}")
+            
+        self.provider = provider
+        self.analyzer = create_handler(
+            provider=provider,
+            api_key=os.getenv(f"{provider.upper()}_API_KEY"),
+            base_url=os.getenv(f"{provider.upper()}_BASE_URL"),
+            model=PROVIDERS[provider][2],
+            rate_limit=config.DEFAULT_RATE_LIMIT,
+            rate_period=config.DEFAULT_RATE_PERIOD
+        )
 
     def generate_completions(
         self,
+        dataset_path: str,
         categories: List[str] = None,
         behaviors: List[str] = None,
         sources: List[str] = None,
-        dataset_path: str = DEFAULT_JAILBREAKS_DATASET,
-        config_file: str = None,
-        rate_limit: int = BaseTestClass.DEFAULT_RATE_LIMIT,
-        rate_period: int = BaseTestClass.DEFAULT_RATE_PERIOD
+        config_file: Optional[str] = None
     ) -> str:
-        """Generate completions using NANI with multiple configurations."""
+        """Generate completions for dataset."""
         # Load configurations
-        configs = self._load_configs(config_file)
+        configs = self._load_file(config_file) if config_file else [self.analyzer.provider.get_default_config()]
         print(f"📋 Loaded {len(configs)} configuration(s)")
         
         # Load and filter prompts
-        jailbreaks = self._load_file(dataset_path)
-        filtered_prompts = self._filter_prompts(
-            jailbreaks["rows"],
-            categories,
-            behaviors,
-            sources
-        )
+        dataset = self._load_file(dataset_path)
+        prompts = self._filter_prompts(dataset["rows"], categories, behaviors, sources)
         
-        total_prompts = len(filtered_prompts)
+        print(f"\n📋 Starting generation of {len(prompts)} prompts")
         results = []
         
-        print(f"\n📋 Starting generation of {total_prompts} prompts with {len(configs)} configuration(s) each")
-        
-        for idx, prompt in enumerate(filtered_prompts, 1):
-            print(f"\n🔍 Processing prompt {idx}/{total_prompts}")
+        # Process prompts
+        for idx, prompt in enumerate(prompts, 1):
+            print(f"\n🔍 Processing prompt {idx}/{len(prompts)}")
+            completions = []
             
-            # Store completions for each configuration
-            prompt_completions = []
-            
-            for config_idx, config in enumerate(configs, 1):
-                print(f"⚙️ Using configuration #{config_idx}: {config}")
+            for config_idx, cfg in enumerate(configs, 1):
+                print(f"⚙️ Using configuration #{config_idx}: {cfg}")
                 
                 try:
-                    # Initialize NANI analyzer with current config
-                    nani_analyzer = create_handler(
-                        provider="nani",
-                        api_key=os.getenv("NANI_API_KEY"),
-                        base_url=os.getenv("NANI_BASE_URL", "http://nani.ooo/api/chat"),
-                        model=self.DEFAULT_MODELS["nani"],
-                        rate_limit=rate_limit,
-                        rate_period=rate_period,
-                        config=config
-                    )
-                    
-                    completion = nani_analyzer.generate_response(prompt["instruction"])
-                    prompt_completions.append({
-                        "config": config,
+                    self.analyzer.config = cfg
+                    completion = self.analyzer.generate_response(prompt["instruction"])
+                    completions.append({
+                        "config": cfg,
                         "completion": completion
                     })
                     print(f"✓ Configuration #{config_idx} complete")
                     
                 except Exception as e:
                     print(f"❌ Generation failed for configuration #{config_idx}: {str(e)}")
-                    prompt_completions.append({
-                        "config": config,
+                    completions.append({
+                        "config": cfg,
                         "completion": {"error": str(e)}
                     })
             
-            # Add all completions to the prompt
-            prompt["completions"] = prompt_completions
+            prompt["completions"] = completions
             results.append(prompt)
-            print(f"✓ Prompt {idx}/{total_prompts} complete")
+            print(f"✓ Prompt {idx}/{len(prompts)} complete")
         
         # Save results
-        output_data = {"instructions": results}
-        output_path = os.path.join(
-            self.output_dir,
-            self._get_output_filename("completions", categories)
-        )
-        self._save_file(output_data, output_path)
+        output_path = self.output_dir / self._get_output_filename("completions", categories)
+        self._save_file({"instructions": results}, output_path)
         
         print(f"💫 Generated completions saved to: {output_path}")
-        return output_path
+        return str(output_path)

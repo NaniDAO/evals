@@ -1,115 +1,143 @@
+"""Main entry point for the evaluation system."""
 import argparse
+from pathlib import Path
 from dotenv import load_dotenv
+from generators.config import config
 from generators.completions import CompletionGenerator
 from generators.evaluations import CompletionEvaluator
 
-OUTPUT_DIR = "out"
-DATA_DIR = "data"
-
 def parse_arguments():
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="Evaluate prompts and completions using LLM judges."
     )
 
+    # Core evaluation parameters
     parser.add_argument(
         "--eval-prompt",
         default="eval0_system_prompt",
-        help="Name of the prompt file to use for evaluating completions.",
+        help="Name of the prompt file to use for evaluating completions."
     )
     parser.add_argument(
         "--dataset",
-        default="data/datasets/JBB_dataset.json",
-        help="Name of the jailbreaks file to use for generating completions.",
+        help="Name of the dataset from jailbreaks_datasets.json to use (defaults to JBB_dataset)."
     )
     parser.add_argument(
         "--judge",
         required=False,
         choices=["gemini", "anthropic", "openai"],
-        help="Specify which model to use for the analysis.",
+        help="Specify which model to use for the analysis."
     )
+
+    # Optional configurations
     parser.add_argument(
         "--model",
-        help="Specify which model to use for the evaluation. If not provided, uses provider's default model.",
+        help="Specify which model to use for the evaluation. If not provided, uses provider's default model."
     )
     parser.add_argument(
         "--evaluate-candidates-file",
-        help="Path to the layer candidates JSON file to evaluate.",
+        help="Path to the completions JSON file to evaluate."
     )
     parser.add_argument(
         "--config-file",
-        help="Path to the configuration file for the evaluation.",
+        type=Path,
+        help="Path to the configuration file containing model parameters."
     )
     parser.add_argument(
         "--output-dir",
-        default=OUTPUT_DIR,
-        help="Directory to save output files.",
+        type=Path,
+        default=config.OUTPUT_DIR,
+        help="Directory to save output files."
     )
-    # JBB dataset filtering options
+
+    # Dataset filtering options
     parser.add_argument(
         "--category",
         nargs="+",
-        help="Specify which categories to include in the evaluation.",
+        help="Filter: Which categories to include in the evaluation."
     )
     parser.add_argument(
         "--behavior",
         nargs="+",
-        help="Specify which behaviors to include in the evaluation.",
+        help="Filter: Which behaviors to include in the evaluation."
     )
     parser.add_argument(
         "--source",
         nargs="+",
-        help="Specify which sources (of jailbreak) to include in the evaluation.",
+        help="Filter: Which sources to include in the evaluation."
     )
 
     return parser.parse_args()
 
+def ensure_output_dir(path: Path) -> Path:
+    """Ensure output directory exists."""
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
 def main():
-    # Initialize environment and parse arguments
+    """Main execution flow."""
+    # Initialize environment
     load_dotenv()
     args = parse_arguments()
-
-    # Add completions-only mode flag
+    
+    # Ensure output directory exists
+    output_dir = ensure_output_dir(args.output_dir)
+    
+    # Determine execution mode
     completions_only = not args.judge
+    
+    try:
+        # Initialize generators
+        generator = CompletionGenerator(output_dir=output_dir)
+        evaluator = CompletionEvaluator(output_dir=output_dir) if not completions_only else None
 
-    # Initialize generators with output directory
-    generator = CompletionGenerator(output_dir=args.output_dir)
-    evaluator = CompletionEvaluator(output_dir=args.output_dir) if not completions_only else None
+        if args.evaluate_candidates_file:
+            # Direct evaluation mode
+            if completions_only:
+                raise ValueError("Cannot evaluate candidates file without specifying a judge")
 
-    # Handle different execution modes
-    if args.evaluate_candidates_file:
-        if completions_only:
-            print("Error: Cannot evaluate candidates file in completions-only mode")
-            return
-
-        # Evaluate existing completions file
-        output_path = evaluator.evaluate_completions(
-            completions_file=args.evaluate_candidates_file,
-            eval_prompt_name=args.eval_prompt,
-            judge_provider=args.judge,
-            judge_model=args.model,
-            system_prompt=args.eval_prompt,
-        )
-    else:
-        # Generate completions
-        completions_path = generator.generate_completions(
-            categories=args.category,
-            behaviors=args.behavior,
-            sources=args.source,
-            dataset_path=args.dataset,
-            config_file=args.config_file,
-        )
-
-        # Evaluate completions if not in completions-only mode
-        if not completions_only:
             output_path = evaluator.evaluate_completions(
-                completions_file=completions_path,
+                completions_file=args.evaluate_candidates_file,
                 eval_prompt_name=args.eval_prompt,
                 judge_provider=args.judge,
                 judge_model=args.model,
-                system_prompt=args.eval_prompt,
+                system_prompt=args.eval_prompt
             )
+            print(f"✨ Evaluation completed: {output_path}")
+            
+        else:
+            # Generate completions mode
+            try:
+                dataset_path = config.get_dataset_path(args.dataset)
+            except ValueError as e:
+                print(f"⚠️ {e}, using default dataset")
+                dataset_path = config.get_dataset_path()
 
-    print(f"Process completed successfully!")
+            completions_path = generator.generate_completions(
+                dataset_path=dataset_path,
+                categories=args.category,
+                behaviors=args.behavior,
+                sources=args.source,
+                config_file=args.config_file
+            )
+            print(f"📝 Completions generated: {completions_path}")
+
+            # Evaluate if judge is specified
+            if not completions_only:
+                output_path = evaluator.evaluate_completions(
+                    completions_file=completions_path,
+                    eval_prompt_name=args.eval_prompt,
+                    judge_provider=args.judge,
+                    judge_model=args.model,
+                    system_prompt=args.eval_prompt
+                )
+                print(f"✨ Evaluation completed: {output_path}")
+
+        print("Process completed successfully!")
+        
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     main()

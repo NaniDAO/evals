@@ -1,31 +1,20 @@
-from typing import List, Dict, Any
+"""Handles evaluation of completions using LLM judges."""
+from typing import List, Dict, Any, Optional
 import os
 import json
 from .base import BaseTestClass
-from apis.analyzer import create_handler
+from apis.analyzer import create_handler, PROVIDERS
+from .config import config
 
 class CompletionEvaluator(BaseTestClass):
-    EVAL_PROMPTS_COLLECTION = "data/prompts/eval_prompts.json"
-    
     def _load_eval_prompt(self, prompt_name: str) -> str:
-        """Load evaluation prompt from collection."""
+        """Load evaluation prompt."""
         try:
-            prompt_collection = self._load_file(self.EVAL_PROMPTS_COLLECTION)
-            
-            prompt_file = None
-            for prompt_dict in prompt_collection:
-                if prompt_name in prompt_dict:
-                    prompt_file = prompt_dict[prompt_name]
-                    break
-
-            if not prompt_file:
-                raise ValueError(f"Prompt '{prompt_name}' not found in collection")
-
-            with open(prompt_file, "r") as f:
+            prompt_path = config.get_prompt_path(prompt_name)
+            with open(prompt_path) as f:
                 return f.read().strip()
-
         except Exception as e:
-            raise Exception(f"Failed to load evaluation prompt: {str(e)}")
+            raise Exception(f"Failed to load evaluation prompt: {e}")
 
     def _create_eval_prompt(self, base_prompt: str, instructions: List[str]) -> str:
         """Create evaluation prompt with instructions."""
@@ -38,40 +27,35 @@ class CompletionEvaluator(BaseTestClass):
         completions_file: str,
         eval_prompt_name: str = "eval0_system_prompt",
         judge_provider: str = "gemini",
-        judge_model: str = None,
+        judge_model: Optional[str] = None,
         system_prompt: str = "",
-        rate_limit: int = BaseTestClass.DEFAULT_RATE_LIMIT,
-        rate_period: int = BaseTestClass.DEFAULT_RATE_PERIOD
     ) -> str:
         """Evaluate completions using specified judge."""
+        if judge_provider not in PROVIDERS:
+            raise ValueError(f"Unsupported provider: {judge_provider}")
+            
         # Load evaluation prompt
         eval_prompt = self._load_eval_prompt(eval_prompt_name)
         
-        # Create judge analyzer
-        if not judge_model:
-            judge_model = self.DEFAULT_MODELS.get(judge_provider)
-            
-        judge_analyzer = create_handler(
+        # Initialize judge
+        judge = create_handler(
             provider=judge_provider,
-            model=judge_model,
             api_key=os.getenv(f"{judge_provider.upper()}_API_KEY"),
+            model=judge_model or PROVIDERS[judge_provider][2],
             system_prompt=system_prompt,
-            rate_limit=rate_limit,
-            rate_period=rate_period,
+            rate_limit=config.DEFAULT_RATE_LIMIT,
+            rate_period=config.DEFAULT_RATE_PERIOD
         )
         
-        # Load completions
-        completions_data = self._load_file(completions_file)
-        instructions = completions_data.get("instructions", [])
+        # Load and evaluate completions
+        data = self._load_file(completions_file)
+        instructions = data.get("instructions", [])
+        results = []
         
-        # Evaluate completions
-        evaluated_instructions = []
-        total = len(instructions)
-        
-        print(f"\n📋 Starting evaluation of {total} instructions")
+        print(f"\n📋 Starting evaluation of {len(instructions)} instructions")
         
         for idx, instruction in enumerate(instructions, 1):
-            print(f"\n🔍 Processing instruction {idx}/{total}")
+            print(f"\n🔍 Processing instruction {idx}/{len(instructions)}")
             
             prompt = self._create_eval_prompt(
                 eval_prompt,
@@ -79,23 +63,19 @@ class CompletionEvaluator(BaseTestClass):
             )
             
             try:
-                evaluation = judge_analyzer.generate_json_response(prompt)
+                evaluation = judge.generate_json_response(prompt)
                 print(f"📊 Evaluation: {evaluation}")
                 instruction["evaluations"] = evaluation
             except Exception as e:
-                print(f"❌ Evaluation failed: {str(e)}")
+                print(f"❌ Evaluation failed: {e}")
                 instruction["evaluations"] = {"error": str(e)}
                 
-            evaluated_instructions.append(instruction)
-            print(f"✓ Instruction {idx}/{total} complete")
+            results.append(instruction)
+            print(f"✓ Instruction {idx}/{len(instructions)} complete")
         
         # Save results
-        output_data = {"instructions": evaluated_instructions}
-        output_path = os.path.join(
-            self.output_dir,
-            self._get_output_filename(f"eval_{judge_provider}")
-        )
-        self._save_file(output_data, output_path)
+        output_path = self.output_dir / self._get_output_filename(f"eval_{judge_provider}")
+        self._save_file({"instructions": results}, output_path)
         
         print(f"✨ Evaluations saved to: {output_path}")
-        return output_path
+        return str(output_path)
