@@ -1,12 +1,21 @@
 """Handles evaluation of completions using LLM judges."""
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TypedDict
 import os
 import json
 from .base import BaseTestClass
 from apis.analyzer import create_handler, PROVIDERS
 from .config import config
 
+class EvaluationResults(TypedDict):
+    instructions: List[Dict[str, Any]]
+
 class CompletionEvaluator(BaseTestClass):
+    def __init__(self, output_dir: str = None):
+        """Initialize evaluator."""
+        super().__init__(output_dir)
+        self.last_results: Optional[EvaluationResults] = None
+        self.last_output_path: Optional[str] = None
+
     def _load_eval_prompt(self, prompt_name: str) -> str:
         """Load evaluation prompt."""
         try:
@@ -29,8 +38,22 @@ class CompletionEvaluator(BaseTestClass):
         judge_provider: str = "gemini",
         judge_model: Optional[str] = None,
         system_prompt: str = "",
-    ) -> str:
-        """Evaluate completions using specified judge."""
+        save_output: bool = True
+    ) -> EvaluationResults:
+        """
+        Evaluate completions using specified judge.
+        
+        Args:
+            completions_file: Path to completions file to evaluate
+            eval_prompt_name: Name of evaluation prompt to use
+            judge_provider: Provider for evaluation (gemini/anthropic/openai)
+            judge_model: Optional specific model to use
+            system_prompt: Optional system prompt
+            save_output: Whether to save results to file (default: True)
+            
+        Returns:
+            EvaluationResults containing evaluations
+        """
         if judge_provider not in PROVIDERS:
             raise ValueError(f"Unsupported provider: {judge_provider}")
             
@@ -73,9 +96,20 @@ class CompletionEvaluator(BaseTestClass):
             results.append(instruction)
             print(f"✓ Instruction {idx}/{len(instructions)} complete")
         
-        # Save results
-        output_path = self.output_dir / self._get_output_filename(f"eval_{judge_provider}")
-        self._save_file({"instructions": results}, output_path)
+        self.last_results = {"instructions": results}
         
-        print(f"✨ Evaluations saved to: {output_path}")
-        return str(output_path)
+        if save_output:
+            output_path = self.output_dir / self._get_output_filename(f"eval_{judge_provider}")
+            self._save_file(self.last_results, output_path)
+            self.last_output_path = str(output_path)
+            print(f"✨ Evaluations saved to: {output_path}")
+            
+        return self.last_results
+
+    def get_last_output_path(self) -> Optional[str]:
+        """Get path of last saved output file."""
+        return self.last_output_path
+
+    def get_last_results(self) -> Optional[EvaluationResults]:
+        """Get results from last evaluation run."""
+        return self.last_results

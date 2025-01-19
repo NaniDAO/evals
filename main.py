@@ -96,13 +96,16 @@ def main():
             if completions_only:
                 raise ValueError("Cannot evaluate file without specifying a judge")
 
-            output_path = evaluator.evaluate_completions(
+            evaluator.evaluate_completions(
                 completions_file=args.evaluate_file,
                 eval_prompt_name=args.evaluation_prompt,
                 judge_provider=args.evaluation_judge,
                 judge_model=args.evaluation_model,
                 system_prompt=args.evaluation_prompt
             )
+            
+            output_path = evaluator.get_last_output_path()
+            
             print(f"✨ Evaluation completed: {output_path}")
             
         else:
@@ -113,24 +116,30 @@ def main():
                 print(f"⚠️ {e}, using default dataset")
                 dataset_path = config.get_dataset_path()
 
-            completions_path = generator.generate_completions(
+            generator.generate_completions(
                 dataset_path=dataset_path,
                 categories=args.dataset_category,
                 behaviors=args.dataset_behavior,
                 sources=args.dataset_source,
                 config_file=args.config_file
             )
+            
+            completions_path = generator.get_last_output_path()
+            
             print(f"📝 Completions generated: {completions_path}")
 
             # Evaluate if judge is specified
             if not completions_only:
-                output_path = evaluator.evaluate_completions(
+                evaluator.evaluate_completions(
                     completions_file=completions_path,
                     eval_prompt_name=args.evaluation_prompt,
                     judge_provider=args.evaluation_judge,
                     judge_model=args.evaluation_model,
                     system_prompt=args.evaluation_prompt
                 )
+                
+                output_path = evaluator.get_last_output_path()
+                
                 print(f"✨ Evaluation completed: {output_path}")
 
         print("Process completed successfully!")
