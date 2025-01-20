@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from generators.config import config
 from generators.completions import CompletionGenerator
 from generators.evaluations import CompletionEvaluator
+from apis.analyzer import PROVIDERS
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -17,17 +18,24 @@ def parse_arguments():
     parser.add_argument(
         "--evaluation-prompt",
         default="eval0_system_prompt",
-        help="Name of the prompt file to use for evaluating completions."
+        help="Name of the prompt file to use for evaluating completions. (default: eval0_system_prompt)"
     )
     parser.add_argument(
         "--completions-dataset",
-        help="Name of the dataset from jailbreaks_datasets.json to use (defaults to JBB)."
+        help="Name of the dataset from jailbreaks_datasets.json to use (default: JBB)."
     )
     parser.add_argument(
         "--evaluation-judge",
         required=False,
         choices=["gemini", "anthropic", "openai"],
         help="Specify which model to use for the analysis."
+    )
+    parser.add_argument(
+        "--providers",
+        nargs="+",
+        choices=list(PROVIDERS.keys()),
+        default=["nani"],
+        help="List of providers to use for completions generation (default: nani)"
     )
 
     # Dataset feature listing options
@@ -217,7 +225,7 @@ def main():
     
     try:
         # Initialize generators
-        generator = CompletionGenerator(output_dir=output_dir)
+        generator = CompletionGenerator(output_dir=output_dir, providers=args.providers)
         evaluator = CompletionEvaluator(output_dir=output_dir) if not completions_only else None
 
         if args.evaluate_file:

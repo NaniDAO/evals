@@ -10,22 +10,34 @@ class CompletionResults(TypedDict):
     instructions: List[Dict[str, Any]]
 
 class CompletionGenerator(BaseTestClass):
-    def __init__(self, output_dir: str = None, provider: str = "nani"):
+    def __init__(self, output_dir: str = None, providers: List[str] = None):
         """Initialize completion generator."""
         super().__init__(output_dir)
         
-        if provider not in PROVIDERS:
-            raise ValueError(f"Unsupported provider: {provider}")
+        self.providers = providers or ["nani"]
+        self.analyzers = {}
+        
+        for provider in self.providers:
+            if provider not in PROVIDERS:
+                raise ValueError(f"Unsupported provider: {provider}")
+                
+            # Prepare provider-specific kwargs
+            provider_kwargs = {
+                "rate_limit": config.DEFAULT_RATE_LIMIT,
+                "rate_period": config.DEFAULT_RATE_PERIOD
+            }
             
-        self.provider = provider
-        self.analyzer = create_handler(
-            provider=provider,
-            api_key=os.getenv(f"{provider.upper()}_API_KEY"),
-            base_url=os.getenv(f"{provider.upper()}_BASE_URL"),
-            model=PROVIDERS[provider][2],
-            rate_limit=config.DEFAULT_RATE_LIMIT,
-            rate_period=config.DEFAULT_RATE_PERIOD
-        )
+            # Add base_url only for providers that need it (like nani/CurlProvider)
+            if provider == "nani":
+                provider_kwargs["base_url"] = os.getenv(f"{provider.upper()}_BASE_URL")
+            
+            self.analyzers[provider] = create_handler(
+                provider=provider,
+                api_key=os.getenv(f"{provider.upper()}_API_KEY"),
+                model=PROVIDERS[provider][2],
+                **provider_kwargs
+            )
+            
         self.last_results: Optional[CompletionResults] = None
         self.last_output_path: Optional[str] = None
 
@@ -38,23 +50,19 @@ class CompletionGenerator(BaseTestClass):
         config_file: Optional[str] = None,
         save_output: bool = True
     ) -> CompletionResults:
-        """
-        Generate completions for dataset.
-        
-        Args:
-            dataset_path: Path to the dataset file
-            categories: Optional list of categories to filter
-            behaviors: Optional list of behaviors to filter
-            sources: Optional list of sources to filter
-            config_file: Optional path to config file
-            save_output: Whether to save results to file (default: True)
-            
-        Returns:
-            CompletionResults containing generated completions
-        """
+        """Generate completions for dataset using configured providers."""
         # Load configurations
-        configs = self._load_file(config_file) if config_file else [self.analyzer.provider.get_default_config()]
-        print(f"📋 Loaded {len(configs)} configuration(s)")
+        base_configs = self._load_file(config_file) if config_file else []
+        provider_configs = {}
+        
+        # Initialize configs for each provider
+        for provider in self.providers:
+            if not base_configs:
+                provider_configs[provider] = [self.analyzers[provider].provider.get_default_config()]
+            else:
+                provider_configs[provider] = base_configs
+                
+        print(f"📋 Loaded configurations for {len(self.providers)} provider(s)")
         
         # Load and filter prompts
         dataset = self._load_file(dataset_path)
@@ -68,30 +76,47 @@ class CompletionGenerator(BaseTestClass):
             print(f"\n🔍 Processing prompt {idx}/{len(prompts)}")
             completions = []
             
-            for config_idx, cfg in enumerate(configs, 1):
-                print(f"⚙️ Using configuration #{config_idx}: {cfg}")
+            for provider in self.providers:
+                print(f"\n📝 Using provider: {provider}")
+                analyzer = self.analyzers[provider]
                 
-                try:
-                    self.analyzer.config = cfg
-                    completion = self.analyzer.generate_response(prompt["instruction"])
-                    completions.append({
-                        "config": cfg,
-                        "completion": completion
-                    })
-                    print(f"✓ Configuration #{config_idx} complete")
+                for config_idx, cfg in enumerate(provider_configs[provider], 1):
+                    print(f"⚙️ Using configuration #{config_idx}: {cfg}")
                     
-                except Exception as e:
-                    print(f"❌ Generation failed for configuration #{config_idx}: {str(e)}")
-                    completions.append({
-                        "config": cfg,
-                        "completion": {"error": str(e)}
-                    })
+                    try:
+                        analyzer.config = cfg
+                        completion = analyzer.generate_response(prompt["instruction"])
+                        completions.append({
+                            "provider": provider,
+                            "model": PROVIDERS[provider][2],  # Add model metadata
+                            "config": cfg,
+                            "completion": completion
+                        })
+                        print(f"✓ {provider} configuration #{config_idx} complete")
+                        
+                    except Exception as e:
+                        print(f"❌ Generation failed for {provider} configuration #{config_idx}: {str(e)}")
+                        completions.append({
+                            "provider": provider,
+                            "model": PROVIDERS[provider][2],  # Add model metadata even for errors
+                            "config": cfg,
+                            "completion": {"error": str(e)}
+                        })
             
             prompt["completions"] = completions
             results.append(prompt)
             print(f"✓ Prompt {idx}/{len(prompts)} complete")
         
-        self.last_results = {"instructions": results}
+        # Add metadata about providers and models used
+        self.last_results = {
+            "metadata": {
+                "providers": [{
+                    "name": provider,
+                    "model": PROVIDERS[provider][2]
+                } for provider in self.providers]
+            },
+            "instructions": results
+        }
         
         if save_output:
             output_path = self.output_dir / self._get_output_filename("completions", categories)
