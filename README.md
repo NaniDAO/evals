@@ -1,33 +1,8 @@
 # NaniDAO/evals
 
-A Python library for generating completions and evaluations of NaniDAO models using different datasets, prompts and configuration files.
+A Python library for generating completions and evaluating NaniDAO models using different datasets, prompts, and configuration files.
 
-Provides both CLI and Python API for running prompt completions and evaluations.
-
-Use `main.py` for CLI.
-
-## Project Structure
-
-`/apis` - LLM provider wrappers for:
-- OpenAI
-- Anthropic
-- Google (Gemini)
-- HuggingFace
-- Custom curl endpoints
-
-`/data` directory:
-- `/configs` - Configuration files for completion generation
-- `/datasets` - Input datasets for completion generation
-- `/info` - Historical run data
-- `/prompts` - System prompts for completion evaluation
-
-`/generators` - Python API for building custom completion/evaluation pipelines
-
-`/tests` - Test suite for the evaluation system
-
-`/utils` - Helper utilities
-
-## Prerequisites
+## Quick Start
 
 1. Set up environment variables in `.env`:
 ```bash
@@ -38,106 +13,133 @@ ANTHROPIC_API_KEY=your_anthropic_api_key
 OPENAI_API_KEY=your_openai_api_key
 ```
 
-2. Required data files:
-- Evaluation prompts: `data/prompts/eval_prompts.json`
-- Default dataset: `data/datasets/JBB_dataset.json`
-
-## Usage Modes
-
-### 1. Generate Completions Only
-
-Generate completions using the NANI model:
-
+2. Install dependencies:
 ```bash
-python main.py \
-  --completions-dataset JBB_dataset \
-  --dataset-category "Category1" "Category2" \
-  --dataset-behavior "Behavior1" \
-  --dataset-source "Source1" \
-  --output-dir out
+pip install -r requirements.txt
 ```
 
-For default dataset completions, simply run:
+## Basic Usage
+
+### Exploring Datasets
 ```bash
+# List available behaviors
+python main.py --list-behaviors
+
+# List categories in a specific dataset
+python main.py --completions-dataset NANI --list-categories
+
+# Show prompts that match specific criteria
+python main.py --show-prompts --dataset-category Hardware
+```
+
+### Generating Completions
+
+```bash
+# Generate completions using default settings
 python main.py
+
+# Generate completions from specific dataset
+python main.py --completions-dataset NANI
 ```
 
-### 2. Evaluate Existing Completions
-
-Evaluate previously generated completions:
+### Evaluating Completions
 
 ```bash
+# Generate and evaluate completions using Gemini
+python main.py --evaluation-judge gemini
+
+# Evaluate existing completions file
+python main.py --evaluation-judge anthropic --evaluate-file out/completions.json
+```
+
+Datasets for generating completions are found in `data/datasets/jailbreaks_datasets.json`.
+
+Prompts for generating evaluations are found in `data/prompts/eval_prompts.json`.
+
+## Advanced Usage
+
+### 1. Filtered Completion Generation
+
+Generate completions for specific categories/behaviors:
+```bash
 python main.py \
-  --evaluate-file path/to/completions.json \
-  --evaluation-prompt eval0_system_prompt \
+  --completions-dataset NANI \
+  --dataset-category Hardware \
+  --dataset-behavior Engineering
+```
+
+### 2. Custom Evaluation Settings
+
+Evaluate with specific model and prompt:
+```bash
+python main.py \
   --evaluation-judge anthropic \
   --evaluation-model claude-3-5-sonnet-20241022 \
-  --output-dir out
+  --evaluation-prompt eval0_system_prompt
 ```
 
-Quick evaluation of existing completions:
-```bash
-python main.py --evaluation-judge gemini --evaluate-file out/<timestamp>.json
-```
+### 3. Combined Generation and Evaluation
 
-### 3. Generate and Evaluate Completions
-
-Generate and evaluate in one run:
-
+Generate and evaluate in one run with filters:
 ```bash
 python main.py \
-  --completions-dataset JBB_dataset \
-  --evaluation-prompt eval0_system_prompt \
-  --evaluation-judge anthropic \
-  --dataset-source "Source1" \
-  --output-dir out
+  --completions-dataset NANI \
+  --evaluation-judge gemini \
+  --dataset-category Hardware \
+  --dataset-source Original
 ```
 
-Quick generation and evaluation:
-```bash
-python main.py --evaluation-judge gemini
-```
+## Arguments Reference
 
-## Arguments
+### Dataset Exploration
+- `--list-behaviors`: Show available behaviors
+- `--list-categories`: Show available categories
+- `--list-sources`: Show available sources
+- `--show-prompts`: Display prompts matching filters
+- `--completions-dataset`: Select dataset (default: JBB)
 
-| Argument | Description | Default |
-|----------|-------------|---------|
-| `--evaluation-prompt` | Evaluation prompt name | eval0_system_prompt |
-| `--completions-dataset` | Dataset name from config | JBB_dataset |
-| `--evaluation-judge` | Judge model provider (gemini/anthropic/openai) | None |
-| `--evaluation-model` | Specific judge model | Provider's default |
-| `--evaluate-file` | Existing completions file to evaluate | None |
-| `--config-file` | Model configuration file | Default config |
-| `--output-dir` | Output directory | out |
-| `--dataset-category` | Categories to include (multiple) | None |
-| `--dataset-behavior` | Behaviors to include (multiple) | None |
-| `--dataset-source` | Sources to include (multiple) | None |
+### Generation & Filtering
+- `--dataset-category`: Filter by categories
+- `--dataset-behavior`: Filter by behaviors
+- `--dataset-source`: Filter by sources
+- `--output-dir`: Output directory (default: out)
+- `--config-file`: Custom model configuration
+
+### Evaluation
+- `--evaluation-judge`: Judge provider (gemini/anthropic/openai)
+- `--evaluation-model`: Specific judge model
+- `--evaluation-prompt`: Evaluation prompt (default: eval0_system_prompt)
+- `--evaluate-file`: Existing completions file to evaluate
 
 ## Default Models
 
-```json
-{
-    "gemini": "gemini-2.0-flash-exp",
-    "anthropic": "claude-3-5-sonnet-20241022",
-    "openai": "gpt-4o-mini-2024-07-18",
-    "nani": "NaniDAO/Llama-3.3-70B-Instruct-ablated"
-}
+| Provider  | Model |
+|-----------|-------|
+| gemini    | gemini-2.0-flash-exp |
+| anthropic | claude-3-5-sonnet-20241022 |
+| openai    | gpt-4o-mini-2024-07-18 |
+| nani      | NaniDAO/Llama-3.3-70B-Instruct-ablated |
+
+## Project Structure
+
+```
+/apis           - LLM provider implementations
+/data
+  /configs     - Model configurations
+  /datasets    - Input datasets
+  /info        - Historical data
+  /prompts     - Evaluation prompts
+/generators    - Core generation/evaluation logic
+/tests         - Test suite
+/utils         - Helper utilities
 ```
 
 ## Output Format
 
 Results are saved with timestamps:
 ```
-out/YYYYMMDD_HHMMSS_category1_category2.json
+out/YYYYMMDD_HHMMSS_completions.json  # For completions
+out/YYYYMMDD_HHMMSS_eval_gemini.json  # For evaluations
 ```
 
-## Error Handling
-
-- Validates arguments based on execution mode
-- Failed operations are logged in output JSON
-- Clear error messages for missing prerequisites
-- Fallback to default dataset when none specified
-
-## Historical Results
-
-Previous evaluation results are available in [data/info/old_evals](./data/info/old_evals).
+Previous evaluation results are available in `data/info/old_evals/`.

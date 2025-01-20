@@ -1,6 +1,7 @@
 [
     {
-      "JBB_dataset": "../../data/datasets/JBB_dataset.json"
+      "JBB": "../../data/datasets/JBB_dataset.json",
+      "NANI": "../../data/datasets/NANI_dataset.json"
     }
   ]
   

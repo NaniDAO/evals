@@ -21,7 +21,7 @@ class Config:
     def __init__(self):
         self._datasets = self._load_json(
             self.DATASETS_CONFIG, 
-            default=[{"JBB_dataset": str(self.DATA_DIR / "datasets" / "JBB_dataset.json")}]
+            default=[{"JBB": str(self.DATA_DIR / "datasets" / "JBB_dataset.json")}]
         )
         self._prompts = self._load_json(self.PROMPTS_CONFIG)
         
@@ -36,7 +36,7 @@ class Config:
 
     def get_dataset_path(self, name: Optional[str] = None) -> str:
         """Get dataset path from configuration."""
-        dataset = name or "JBB_dataset"
+        dataset = name or "JBB"
         dataset_info = next((item for item in self._datasets if dataset in item), None)
         if not dataset_info:
             raise ValueError(f"Dataset '{dataset}' not found in configuration")
