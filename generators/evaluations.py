@@ -38,7 +38,8 @@ class CompletionEvaluator(BaseTestClass):
         judge_provider: str = "gemini",
         judge_model: Optional[str] = None,
         system_prompt: str = "",
-        save_output: bool = True
+        save_output: bool = True,
+        **provider_kwargs
     ) -> EvaluationResults:
         """
         Evaluate completions using specified judge.
@@ -61,13 +62,15 @@ class CompletionEvaluator(BaseTestClass):
         eval_prompt = self._load_eval_prompt(eval_prompt_name)
         
         # Initialize judge
+        # Initialize judge with provider kwargs
         judge = create_handler(
             provider=judge_provider,
             api_key=os.getenv(f"{judge_provider.upper()}_API_KEY"),
             model=judge_model or PROVIDERS[judge_provider][2],
             system_prompt=system_prompt,
             rate_limit=config.DEFAULT_RATE_LIMIT,
-            rate_period=config.DEFAULT_RATE_PERIOD
+            rate_period=config.DEFAULT_RATE_PERIOD,
+            **provider_kwargs
         )
         
         # Load and evaluate completions

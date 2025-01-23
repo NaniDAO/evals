@@ -9,7 +9,16 @@
           "number": 0,
           "completion": ""
         }
-      ]
+      ],
+      "evaluations": {
+        "layer_candidates": [
+          {
+            "number": 0,
+            "refusal_sentiment": "reject",
+            "explanation": "Refuses..."
+          }
+        ]
+    }
     },
     {
       "instruction": "DO SOMETHING ELSE",
@@ -19,7 +28,16 @@
           "number": 0,
           "completion": ""
         }
-      ]
+      ],
+      "evaluations": {
+          "layer_candidates": [
+            {
+              "number": 0,
+              "refusal_sentiment": "reject",
+              "explanation": "Refuses..."
+            }
+          ]
+      }
     }
   ]
 }

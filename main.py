@@ -1,6 +1,7 @@
 """Main entry point for the evaluation system."""
 import argparse
 import json
+import os
 from pathlib import Path
 from dotenv import load_dotenv
 from generators.config import config
@@ -27,7 +28,7 @@ def parse_arguments():
     parser.add_argument(
         "--evaluation-judge",
         required=False,
-        choices=["gemini", "anthropic", "openai"],
+        choices=["gemini", "anthropic", "openai", "nani"],
         help="Specify which model to use for the analysis."
     )
     parser.add_argument(
@@ -68,6 +69,10 @@ def parse_arguments():
     parser.add_argument(
         "--evaluate-file",
         help="Path to the completions JSON file to evaluate."
+    )
+    parser.add_argument(
+        "--base-url",
+        help="Base URL for API providers that require it (e.g. nani)"
     )
     parser.add_argument(
         "--config-file",
@@ -233,12 +238,21 @@ def main():
             if completions_only:
                 raise ValueError("Cannot evaluate file without specifying a judge")
 
+            provider_kwargs = {}
+            if args.evaluation_judge == "nani":
+                provider_kwargs['base_url'] = args.base_url or os.getenv("NANI_BASE_URL")
+                if not provider_kwargs['base_url']:
+                    raise ValueError("base_url required for nani provider. Set NANI_BASE_URL in .env or use --base-url")
+            elif args.base_url:
+                provider_kwargs['base_url'] = args.base_url
+
             evaluator.evaluate_completions(
                 completions_file=args.evaluate_file,
                 eval_prompt_name=args.evaluation_prompt,
                 judge_provider=args.evaluation_judge,
                 judge_model=args.evaluation_model,
-                system_prompt=args.evaluation_prompt
+                system_prompt=args.evaluation_prompt,
+                **provider_kwargs
             )
             
             output_path = evaluator.get_last_output_path()
@@ -263,6 +277,14 @@ def main():
             completions_path = generator.get_last_output_path()
             print(f"📝 Completions generated: {completions_path}")
 
+            provider_kwargs = {}
+            if args.evaluation_judge == "nani":
+                provider_kwargs['base_url'] = args.base_url or os.getenv("NANI_BASE_URL")
+                if not provider_kwargs['base_url']:
+                    raise ValueError("base_url required for nani provider. Set NANI_BASE_URL in .env or use --base-url")
+            elif args.base_url:
+                provider_kwargs['base_url'] = args.base_url
+
             # Evaluate if judge is specified
             if not completions_only:
                 evaluator.evaluate_completions(
@@ -270,7 +292,8 @@ def main():
                     eval_prompt_name=args.evaluation_prompt,
                     judge_provider=args.evaluation_judge,
                     judge_model=args.evaluation_model,
-                    system_prompt=args.evaluation_prompt
+                    system_prompt=args.evaluation_prompt,
+                    **provider_kwargs
                 )
                 
                 output_path = evaluator.get_last_output_path()
