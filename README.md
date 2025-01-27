@@ -22,14 +22,14 @@ pip install -r requirements.txt
 
 ### Exploring Datasets
 ```bash
-# List available behaviors
+# List available behaviors (default dataset: JBB)
 python main.py --list-behaviors
 
 # List categories in a specific dataset
 python main.py --completions-dataset NANI --list-categories
 
 # Show prompts that match specific criteria
-python main.py --show-prompts --dataset-category Hardware
+python main.py --show-prompts --dataset-category Hardware --completions-dataset NANI
 ```
 
 ### Generating Completions
