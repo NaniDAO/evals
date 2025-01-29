@@ -1,4 +1,5 @@
 """Main entry point for the evaluation system."""
+
 import argparse
 import json
 import os
@@ -8,6 +9,7 @@ from generators.config import config
 from generators.completions import CompletionGenerator
 from generators.evaluations import CompletionEvaluator
 from apis.analyzer import PROVIDERS
+
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -19,98 +21,107 @@ def parse_arguments():
     parser.add_argument(
         "--evaluation-prompt",
         default="eval0_system_prompt",
-        help="Name of the prompt file to use for evaluating completions. (default: eval0_system_prompt)"
+        help="Name of the prompt file to use for evaluating completions. (default: eval0_system_prompt)",
     )
     parser.add_argument(
         "--completions-dataset",
-        help="Name of the dataset from jailbreaks_datasets.json to use (default: JBB)."
+        help="Name of the dataset from jailbreaks_datasets.json to use (default: JBB).",
     )
     parser.add_argument(
-        "--evaluation-judge",
+        "--evaluation-judge",  # NOTE: change to --evaluation-provider
         required=False,
         choices=["gemini", "anthropic", "openai", "nani"],
-        help="Specify which model to use for the analysis."
+        help="Specify which model to use for the analysis.",
     )
+
+    # Provider-specific configuration
     parser.add_argument(
-        "--providers",
+        "--providers",  # NOTE: change to --completion-providers
         nargs="+",
         choices=list(PROVIDERS.keys()),
         default=["nani"],
-        help="List of providers to use for completions generation (default: nani)"
-    )
-
-    # Dataset feature listing options
-    parser.add_argument(
-        "--list-behaviors",
-        action="store_true",
-        help="List all available behaviors in the selected dataset"
+        help="List of providers to use for completions generation (default: nani)",
     )
     parser.add_argument(
-        "--list-categories",
-        action="store_true",
-        help="List all available categories in the selected dataset"
+        "--provider-urls",
+        nargs="+",
+        help="Base URLs for providers that require it (format: provider:url, e.g., huggingface:https://my-endpoint)",
     )
     parser.add_argument(
-        "--list-sources",
-        action="store_true",
-        help="List all available sources in the selected dataset"
+        "--provider-models",
+        nargs="+",
+        help="Model names for specific providers (format: provider:model, e.g., huggingface:my-model)",
     )
     parser.add_argument(
-        "--show-prompts",
-        action="store_true",
-        help="Show prompts that match the specified behavior/category/source filters"
+        "--provider-api-keys",
+        nargs="+",
+        help="API keys for specific providers (format: provider:key, e.g., huggingface:my-key)",
     )
 
     # Optional configurations
     parser.add_argument(
-        "--evaluation-model",
-        help="Specify which model to use for the evaluation. If not provided, uses provider's default model."
-    )
-    parser.add_argument(
-        "--evaluate-file",
-        help="Path to the completions JSON file to evaluate."
-    )
-    parser.add_argument(
-        "--base-url",
-        help="Base URL for API providers that require it (e.g. nani)"
+        "--evaluate-file", help="Path to the completions JSON file to evaluate."
     )
     parser.add_argument(
         "--config-file",
         type=Path,
-        help="Path to the configuration file containing model parameters."
+        help="Path to the configuration file containing model parameters.",
     )
     parser.add_argument(
         "--output-dir",
         type=Path,
         default=config.OUTPUT_DIR,
-        help="Directory to save output files."
+        help="Directory to save output files.",
     )
 
     # Dataset filtering options
     parser.add_argument(
         "--dataset-category",
         nargs="+",
-        help="Filter: Which categories to include in the evaluation."
+        help="Filter: Which categories to include in the evaluation.",
     )
     parser.add_argument(
         "--dataset-behavior",
         nargs="+",
-        help="Filter: Which behaviors to include in the evaluation."
+        help="Filter: Which behaviors to include in the evaluation.",
     )
     parser.add_argument(
         "--dataset-source",
         nargs="+",
-        help="Filter: Which sources to include in the evaluation."
+        help="Filter: Which sources to include in the evaluation.",
+    )
+
+    # Dataset feature listing options
+    parser.add_argument(
+        "--list-behaviors",
+        action="store_true",
+        help="List all available behaviors in the selected dataset",
+    )
+    parser.add_argument(
+        "--list-categories",
+        action="store_true",
+        help="List all available categories in the selected dataset",
+    )
+    parser.add_argument(
+        "--list-sources",
+        action="store_true",
+        help="List all available sources in the selected dataset",
+    )
+    parser.add_argument(
+        "--show-prompts",
+        action="store_true",
+        help="Show prompts that match the specified behavior/category/source filters",
     )
 
     return parser.parse_args()
+
 
 def print_unique_features(dataset_path: str, feature_type: str) -> None:
     """Print unique features from dataset."""
     try:
         with open(dataset_path) as f:
             data = json.load(f)
-        
+
         # First try to get from unique_features
         if "unique_features" in data and feature_type in data["unique_features"]:
             features = set(data["unique_features"][feature_type])
@@ -125,24 +136,31 @@ def print_unique_features(dataset_path: str, feature_type: str) -> None:
         else:
             print(f"⚠️ No rows or unique_features found in dataset")
             return
-            
+
         if not features:
             print(f"⚠️ No {feature_type.lower()} features found in dataset")
             return
-            
+
         print(f"\n📋 Available {feature_type}s:")
         for idx, feature in enumerate(sorted(features), 1):
             print(f"{idx}. {feature}")
-            
+
     except Exception as e:
         print(f"❌ Error reading dataset: {str(e)}")
 
-def show_matching_prompts(dataset_path: str, *, categories: list = None, behaviors: list = None, sources: list = None) -> None:
+
+def show_matching_prompts(
+    dataset_path: str,
+    *,
+    categories: list = None,
+    behaviors: list = None,
+    sources: list = None,
+) -> None:
     """Show prompts that match the specified filters."""
     try:
         with open(dataset_path) as f:
             data = json.load(f)
-        
+
         if "rows" not in data:
             print(f"⚠️ No rows found in dataset")
             return
@@ -151,10 +169,10 @@ def show_matching_prompts(dataset_path: str, *, categories: list = None, behavio
         for item in data.get("rows", []):
             if "row" not in item:
                 continue
-                
+
             row = item["row"]
             matches = True
-            
+
             # Only apply filters that are specified
             if categories:
                 matches = matches and row.get("Category") in categories
@@ -162,7 +180,7 @@ def show_matching_prompts(dataset_path: str, *, categories: list = None, behavio
                 matches = matches and row.get("Behavior") in behaviors
             if sources:
                 matches = matches and row.get("Source") in sources
-                
+
             if matches:
                 matching_prompts.append(row)
 
@@ -183,14 +201,33 @@ def show_matching_prompts(dataset_path: str, *, categories: list = None, behavio
                 if field in prompt:
                     print(f"{field}: {prompt[field]}")
             print("-" * 80)
-            
+
     except Exception as e:
         print(f"❌ Error reading dataset: {str(e)}")
+
+
+def parse_provider_args(args_list, prefix=""):
+    """Parse provider-specific arguments in format provider:value."""
+    if not args_list:
+        return {}
+
+    result = {}
+    for item in args_list:
+        if ":" not in item:
+            continue
+        provider, value = item.split(":", 1)
+        if prefix:
+            # For environment variables
+            value = os.getenv(f"{prefix}{value}", value)
+        result[provider] = value
+    return result
+
 
 def ensure_output_dir(path: Path) -> Path:
     """Ensure output directory exists."""
     path.mkdir(parents=True, exist_ok=True)
     return path
+
 
 def main():
     """Main execution flow."""
@@ -223,36 +260,47 @@ def main():
         except Exception as e:
             print(f"❌ Error: {str(e)}")
             return
+
+    # Parse provider-specific configurations
+    provider_urls = parse_provider_args(args.provider_urls)
+    provider_models = parse_provider_args(args.provider_models)
+    provider_api_keys = parse_provider_args(args.provider_api_keys)
     
     # Continue with normal evaluation flow
     output_dir = ensure_output_dir(args.output_dir)
     completions_only = not args.evaluation_judge
-    
-    try:
-        # Initialize generators
-        generator = CompletionGenerator(output_dir=output_dir, providers=args.providers)
-        evaluator = CompletionEvaluator(output_dir=output_dir) if not completions_only else None
 
+    try:
         if args.evaluate_file:
             # Direct evaluation mode
             if completions_only:
                 raise ValueError("Cannot evaluate file without specifying a judge")
 
-            provider_kwargs = {}
-            if args.evaluation_judge == "nani":
-                provider_kwargs['base_url'] = args.base_url or os.getenv("NANI_BASE_URL")
-                if not provider_kwargs['base_url']:
-                    raise ValueError("base_url required for nani provider. Set NANI_BASE_URL in .env or use --base-url")
-            elif args.base_url:
-                provider_kwargs['base_url'] = args.base_url
+            # Configure evaluator with judge provider settings
+            judge_provider = args.evaluation_judge
+            judge_config = {}
+            
+            # Add base_url if provided
+            if provider_urls.get(judge_provider):
+                judge_config["base_url"] = provider_urls[judge_provider]
+                
+            # Add API key if provided
+            if provider_api_keys.get(judge_provider):
+                judge_config["api_key"] = provider_api_keys[judge_provider]
+                
+            # Add model if provided
+            if provider_models.get(judge_provider):
+                judge_config["model"] = provider_models[judge_provider]
+    
+            print(f"DEBUG - Judge config: {judge_config}")
 
+            evaluator = CompletionEvaluator(output_dir=output_dir)
             evaluator.evaluate_completions(
                 completions_file=args.evaluate_file,
                 eval_prompt_name=args.evaluation_prompt,
-                judge_provider=args.evaluation_judge,
-                judge_model=args.evaluation_model,
+                judge_provider=judge_provider,
                 system_prompt=args.evaluation_prompt,
-                **provider_kwargs
+                **judge_config
             )
             
             output_path = evaluator.get_last_output_path()
@@ -266,34 +314,74 @@ def main():
                 print(f"⚠️ {e}, using default dataset")
                 dataset_path = config.get_dataset_path()
 
+            # Build provider configurations
+            provider_configs = {}
+            for provider in args.providers:
+                config_dict = {}
+                
+                # Add base_url if provided
+                if provider_urls.get(provider):
+                    config_dict["base_url"] = provider_urls[provider]
+                    
+                # Add API key if provided
+                if provider_api_keys.get(provider):
+                    config_dict["api_key"] = provider_api_keys[provider]
+                    
+                # Add model if provided
+                if provider_models.get(provider):
+                    config_dict["model"] = provider_models[provider]
+                    
+                provider_configs[provider] = config_dict
+                
+            print(f"DEBUG - Provider configurations: {provider_configs}")
+
+            # Initialize generator with configurations
+            generator = CompletionGenerator(
+                output_dir=output_dir,
+                providers=args.providers,
+                provider_configs=provider_configs
+            )
+
+            # Generate completions
             generator.generate_completions(
                 dataset_path=dataset_path,
                 categories=args.dataset_category,
                 behaviors=args.dataset_behavior,
                 sources=args.dataset_source,
-                config_file=args.config_file
+                config_file=args.config_file,
             )
-            
+
             completions_path = generator.get_last_output_path()
             print(f"📝 Completions generated: {completions_path}")
 
-            provider_kwargs = {}
-            if args.evaluation_judge == "nani":
-                provider_kwargs['base_url'] = args.base_url or os.getenv("NANI_BASE_URL")
-                if not provider_kwargs['base_url']:
-                    raise ValueError("base_url required for nani provider. Set NANI_BASE_URL in .env or use --base-url")
-            elif args.base_url:
-                provider_kwargs['base_url'] = args.base_url
-
-            # Evaluate if judge is specified
+            # Handle evaluation if needed
             if not completions_only:
+                evaluator = CompletionEvaluator(output_dir=output_dir)
+                
+                # Configure evaluator with judge provider settings
+                judge_provider = args.evaluation_judge
+                judge_config = {}
+                
+                # Add base_url if provided
+                if provider_urls.get(judge_provider):
+                    judge_config["base_url"] = provider_urls[judge_provider]
+                    
+                # Add API key if provided
+                if provider_api_keys.get(judge_provider):
+                    judge_config["api_key"] = provider_api_keys[judge_provider]
+                    
+                # Add model if provided
+                if provider_models.get(judge_provider):
+                    judge_config["model"] = provider_models[judge_provider]
+                    
+                print(f"DEBUG - Judge config: {judge_config}")
+                
                 evaluator.evaluate_completions(
                     completions_file=completions_path,
                     eval_prompt_name=args.evaluation_prompt,
-                    judge_provider=args.evaluation_judge,
-                    judge_model=args.evaluation_model,
+                    judge_provider=judge_provider,
                     system_prompt=args.evaluation_prompt,
-                    **provider_kwargs
+                    **judge_config
                 )
                 
                 output_path = evaluator.get_last_output_path()
@@ -304,6 +392,6 @@ def main():
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         raise
-
+    
 if __name__ == "__main__":
     main()

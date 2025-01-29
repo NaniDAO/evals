@@ -48,9 +48,10 @@ class CompletionEvaluator(BaseTestClass):
             completions_file: Path to completions file to evaluate
             eval_prompt_name: Name of evaluation prompt to use
             judge_provider: Provider for evaluation (gemini/anthropic/openai)
-            judge_model: Optional specific model to use
+            judge_model: Optional specific model to use (takes precedence over provider_kwargs['model'])
             system_prompt: Optional system prompt
             save_output: Whether to save results to file (default: True)
+            **provider_kwargs: Provider-specific configuration
             
         Returns:
             EvaluationResults containing evaluations
@@ -61,12 +62,13 @@ class CompletionEvaluator(BaseTestClass):
         # Load evaluation prompt
         eval_prompt = self._load_eval_prompt(eval_prompt_name)
         
-        # Initialize judge
-        # Initialize judge with provider kwargs
+        # Update provider_kwargs with judge_model if provided
+        if judge_model is not None:
+            provider_kwargs = {**provider_kwargs, "model": judge_model}
+        
+        # Initialize judge with merged configuration
         judge = create_handler(
             provider=judge_provider,
-            api_key=os.getenv(f"{judge_provider.upper()}_API_KEY"),
-            model=judge_model or PROVIDERS[judge_provider][2],
             system_prompt=system_prompt,
             rate_limit=config.DEFAULT_RATE_LIMIT,
             rate_period=config.DEFAULT_RATE_PERIOD,

@@ -8,7 +8,9 @@ class CurlProvider(LLMProvider):
     def initialize(self, api_key: str, model: str, **kwargs) -> None:
         if "base_url" not in kwargs:
             raise ValueError("CurlProvider requires 'base_url' parameter")
-            
+
+        print(f"DEBUG - CurlProvider initialize params: model={model}, kwargs={kwargs}")
+
         self.base_url = kwargs["base_url"]
         self.api_key = api_key
         self.model = model
@@ -22,8 +24,8 @@ class CurlProvider(LLMProvider):
 
     def get_default_config(self) -> Dict[str, Any]:
         return {
-            "temperature": 0.7,
-            "max_tokens": 8096,
+            "temperature": 0.9,
+            "max_tokens": 4096,
             "top_p": 1.0,
             "frequency_penalty": 0.0,
             "presence_penalty": 0.0,
@@ -63,7 +65,7 @@ class CurlProvider(LLMProvider):
                     self.base_url,
                     headers=headers,
                     json=payload,
-                    timeout=60,
+                    timeout=120,
                     allow_redirects=True
                 )
                 

@@ -71,10 +71,9 @@ class PromptAnalyzer:
     def __init__(
         self,
         provider: str,
-        api_key: str,
         model: Optional[str] = None,
         system_prompt: str = "",
-        config=None,
+        config: Optional[Dict[str, Any]] = None,
         rate_limit: int = 5,
         rate_period: int = 60,
         **provider_kwargs,
@@ -82,9 +81,29 @@ class PromptAnalyzer:
         if provider not in PROVIDERS:
             raise ValueError(f"Unsupported provider: {provider}")
 
-        Provider, _, default_model = PROVIDERS[provider]
+        # Extract provider class and default model
+        Provider, env_key, default_model = PROVIDERS[provider]
+        
+        # Get API key from kwargs or environment
+        if "api_key" not in provider_kwargs:
+            api_key = os.getenv(env_key)
+            if not api_key:
+                raise ValueError(f"No API key provided for {provider} - set {env_key} or provide via api_key parameter")
+            provider_kwargs["api_key"] = api_key
+        
+        # Initialize provider
         self.provider = Provider()
-        self.provider.initialize(api_key, model or default_model, **provider_kwargs)
+        
+        # First spread provider_kwargs, then set model only if not already present
+        provider_init_kwargs = {
+            **provider_kwargs  # This includes api_key and potentially model
+        }
+        if "model" not in provider_init_kwargs:
+            provider_init_kwargs["model"] = model or default_model
+                        
+        self.provider.initialize(**provider_init_kwargs)
+        
+        # Set up analyzer configuration
         self.system_prompt = system_prompt
         self.token_count = 0
         self.prompt_count = 0
@@ -101,7 +120,7 @@ class PromptAnalyzer:
     @retry(
         retry=retry_if_exception(_should_retry_error),
         stop=stop_after_attempt(5),
-        wait=wait_exponential(multiplier=2, min=4, max=60),
+        wait=wait_exponential(multiplier=2, min=4, max=120),
     )
     def _rate_limited_generate(
         self,
@@ -223,12 +242,24 @@ class PromptAnalyzer:
 
 def create_handler(
     provider: str,
-    api_key: str,
     model: Optional[str] = None,
     system_prompt: str = "",
     config: Optional[Dict[str, Any]] = None,
-    **provider_kwargs,
+    **provider_kwargs
 ) -> PromptAnalyzer:
+    """Create a prompt analyzer instance.
+    
+    Args:
+        provider: Name of the provider to use
+        model: Optional model identifier (falls back to provider default)
+        system_prompt: Optional system prompt
+        config: Optional generation configuration
+        **provider_kwargs: Provider-specific configuration including credentials
+    """
     return PromptAnalyzer(
-        provider, api_key, model, system_prompt, config, **provider_kwargs
+        provider=provider,
+        model=model,
+        system_prompt=system_prompt,
+        config=config,
+        **provider_kwargs
     )
