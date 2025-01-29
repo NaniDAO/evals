@@ -41,7 +41,7 @@ class CompletionGenerator(BaseTestClass):
                 **provider_config,  # This includes api_key, model, base_url etc.
             )
             
-            self.model = self.analyzers[provider].provider.model
+            self.model = provider_configs.get("model", None) or PROVIDERS[provider][2]
 
         self.last_results: Optional[CompletionResults] = None
         self.last_output_path: Optional[str] = None
@@ -93,28 +93,43 @@ class CompletionGenerator(BaseTestClass):
                     try:
                         analyzer.config = cfg
                         completion = analyzer.generate_response(prompt["instruction"])
-                        completions.append(
-                            {
-                                "provider": provider,
-                                "model": self.model,  # Add model metadata
-                                "config": cfg,
-                                "completion": completion,
+                        
+                        # Ensure completion is JSON serializable
+                        completion_data = {
+                            "provider": provider,
+                            "model": self.model,
+                            "config": cfg
+                        }
+                        
+                        # Handle non-string completions or errors
+                        try:
+                            if isinstance(completion, str):
+                                completion_data["completion"] = completion
+                            elif isinstance(completion, dict):
+                                completion_data["completion"] = completion
+                            else:
+                                # Convert non-string, non-dict completions to string
+                                completion_data["completion"] = str(completion)
+                                
+                        except Exception as e:
+                            completion_data["completion"] = {
+                                "error": f"Failed to serialize completion: {str(e)}"
                             }
-                        )
+                        
+                        completions.append(completion_data)
                         print(f"✓ {provider} configuration #{config_idx} complete")
 
                     except Exception as e:
-                        print(
-                            f"❌ Generation failed for {provider} configuration #{config_idx}: {str(e)}"
-                        )
-                        completions.append(
-                            {
-                                "provider": provider,
-                                "model": self.model,
-                                "config": cfg,
-                                "completion": {"error": str(e)},
+                        error_msg = str(e)
+                        print(f"❌ Generation failed for {provider} configuration #{config_idx}: {error_msg}")
+                        completions.append({
+                            "provider": provider,
+                            "model": self.model,
+                            "config": cfg,
+                            "completion": {
+                                "error": error_msg
                             }
-                        )
+                        })
 
             prompt["completions"] = completions
             results.append(prompt)
@@ -124,23 +139,44 @@ class CompletionGenerator(BaseTestClass):
         self.last_results = {
             "metadata": {
                 "providers": [
-                    {"name": provider, "model": self.model}
-                    for provider in self.providers
+                    {
+                        "name": provider,
+                        "model": self.model,
+                    } for provider in self.providers
                 ]
             },
-            "instructions": results,
+            "instructions": results
         }
 
         if save_output:
             output_path = self.output_dir / self._get_output_filename(
                 "completions", categories
             )
-            self._save_file(self.last_results, output_path)
-            self.last_output_path = str(output_path)
-            print(f"💫 Generated completions saved to: {self.last_output_path}")
-
+            try:
+                self._save_file(self.last_results, output_path)
+                self.last_output_path = str(output_path)
+                print(f"💫 Generated completions saved to: {self.last_output_path}")
+            except Exception as e:
+                print(f"❌ Failed to save results: {str(e)}")
+                # Create a clean, serializable copy of the results
+                clean_results = self._create_serializable_copy(self.last_results)
+                backup_path = self.output_dir / f"backup_{self._get_output_filename('completions', categories)}"
+                self._save_file(clean_results, backup_path)
+                print(f"💫 Backup results saved to: {backup_path}")
+                
         return self.last_results
 
+    def _create_serializable_copy(self, data: Any) -> Any:
+        """Create a JSON-serializable copy of the data structure."""
+        if isinstance(data, dict):
+            return {k: self._create_serializable_copy(v) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._create_serializable_copy(v) for v in data]
+        elif isinstance(data, (str, int, float, bool, type(None))):
+            return data
+        else:
+            return str(data)  # Convert any non-serializable objects to strings
+        
     def get_last_output_path(self) -> Optional[str]:
         """Get path of last saved output file."""
         return self.last_output_path
