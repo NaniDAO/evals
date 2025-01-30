@@ -30,7 +30,7 @@ def parse_arguments():
     parser.add_argument(
         "--evaluation-judge",  # NOTE: change to --evaluation-provider
         required=False,
-        choices=["gemini", "anthropic", "openai", "nani"],
+        choices=["gemini", "anthropic", "openai", "nani", "huggingface"],
         help="Specify which model to use for the analysis.",
     )
 
