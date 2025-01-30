@@ -1,7 +1,9 @@
 [
     {
       "JBB": "../../data/datasets/JBB_dataset.json",
-      "NANI": "../../data/datasets/NANI_dataset.json"
+      "NANI": "../../data/datasets/NANI_dataset.json",
+      "CHINABAD": "../../data/datasets/china/CHINABAD_dataset.json",
+      "CHINAGOOD": "../../data/datasets/china/CHINAGOOD_dataset.json"
     }
   ]
   

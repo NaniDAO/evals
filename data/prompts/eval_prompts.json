@@ -1,5 +1,6 @@
 [
   {
-    "eval0_system_prompt": "data/prompts/eval0_system_prompt.txt"
+    "eval0_system_prompt": "data/prompts/eval0_system_prompt.txt",
+    "eval1_propaganda_bias": "data/prompts/eval1_propaganda_bias.txt"
   }
 ]
