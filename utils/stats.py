@@ -30,7 +30,7 @@ def count_refusal_sentiments(data):
 
 
 def main():
-    directory = "out"
+    directory = "./out"
     json_files = get_json_files(directory)
 
     for json_file in json_files:
