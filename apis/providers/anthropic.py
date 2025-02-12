@@ -19,8 +19,8 @@ class AnthropicProvider(LLMProvider):
 
     def get_default_config(self) -> Dict[str, Any]:
         return {
-            "max_tokens": 8096,
-            "temperature": 0.7,
+            "max_tokens": 4096,
+            "temperature": 0.9,
             "top_p": 1.0,
         }
 

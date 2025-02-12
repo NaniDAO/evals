@@ -20,7 +20,7 @@ PROVIDERS = {
     ),
     "openai": (OpenAIProvider, "OPENAI_API_KEY", "gpt-4o-mini-2024-07-18"),
     "huggingface": (HuggingFaceProvider, "HUGGINGFACE_API_KEY", "tgi"),
-    "nani": (CurlProvider, "NANI_API_KEY", "NaniDAO/Llama-3.3-70B-Instruct-ablated"),
+    "nani": (CurlProvider, "NANI_API_KEY", "NaniDAO/deepseek-r1-qwen-2.5-32B-ablated"),
 }
 
 

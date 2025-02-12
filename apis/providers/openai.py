@@ -22,8 +22,8 @@ class OpenAIProvider(LLMProvider):
     def get_default_config(self) -> Dict[str, Any]:
         """Get OpenAI-specific default configuration"""
         return {
-            "temperature": 0.7,
-            "max_tokens": 8096,
+            "temperature": 0.9,
+            "max_tokens": 4096,
             "top_p": 1.0,
             "frequency_penalty": 0.0,
             "presence_penalty": 0.0,

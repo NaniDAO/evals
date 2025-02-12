@@ -16,7 +16,7 @@ class GeminiProvider(LLMProvider):
 
     def get_default_config(self) -> Dict[str, Any]:
         return {
-            "temperature": 0.7,
+            "temperature": 0.9,
             "top_p": 1.0,
             "top_k": 40,
             "candidate_count": 1,

@@ -32,8 +32,8 @@ class HuggingFaceProvider(LLMProvider):
     def get_default_config(self) -> Dict[str, Any]:
         """Get default configuration that works with most HuggingFace models"""
         return {
-            "temperature": 0.7,  # Standard temperature for balanced output
-            "max_tokens": 8096,  # Conservative max token limit
+            "temperature": 0.9,  # Standard temperature for balanced output
+            "max_tokens": 4096,  # Conservative max token limit
             "frequency_penalty": 0.0,  # No frequency penalty by default
             "presence_penalty": 0.0,  # No presence penalty by default
             # Uncomment if your specific model supports these:
