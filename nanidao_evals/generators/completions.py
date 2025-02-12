@@ -1,10 +1,8 @@
 """Handles generation of completions from datasets."""
 
 from typing import List, Dict, Any, Optional, TypedDict
-import os
-from pathlib import Path
 from .base import BaseTestClass
-from apis.analyzer import create_handler, PROVIDERS
+from ..apis.analyzer import create_handler, PROVIDERS
 from .config import config
 
 

@@ -5,10 +5,10 @@ import json
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from generators.config import config
-from generators.completions import CompletionGenerator
-from generators.evaluations import CompletionEvaluator
-from apis.analyzer import PROVIDERS
+from .generators.config import config
+from .generators.completions import CompletionGenerator
+from .generators.evaluations import CompletionEvaluator
+from .apis.analyzer import PROVIDERS
 
 
 def parse_arguments():

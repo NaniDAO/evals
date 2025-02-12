@@ -13,10 +13,24 @@ ANTHROPIC_API_KEY=your_anthropic_api_key
 OPENAI_API_KEY=your_openai_api_key
 ```
 
+If not, you can specify individual API_KEY/BASE_URL using CLI arguments.
+
 2. Install dependencies:
 ```bash
-pip install -r requirements.txt
+# Using uv (recommended)
+git clone https://github.com/NaniDAO/evals.git
+cd evals
+uv pip install -e .
+
+# Or using pip
+git clone https://github.com/NaniDAO/evals.git
+cd evals
+pip install -e .
 ```
+
+## data/info
+
+Directory contains previous completions and evaluations run on different LLMs using datasets from `nanidao_evals/data/datasets`. Inspect individual metadata for details. Not part of the `nanidao-evals` package.
 
 ## Basic Usage
 
@@ -25,10 +39,10 @@ pip install -r requirements.txt
 Generate completions using default settings:
 ```bash
 # Using environment variables from .env
-python main.py
+nanidao-evals
 
 # Or passing credentials via CLI
-python main.py \
+nanidao-evals \
   --providers nani \
   --provider-urls "nani:https://nani.ooo/api/chat" \
   --provider-api-keys "nani:your-api-key"
@@ -37,10 +51,10 @@ python main.py \
 Evaluate existing completions:
 ```bash
 # Using environment variables
-python main.py --evaluation-judge nani --evaluate-file out/completions.json
+nanidao-evals --evaluation-judge nani --evaluate-file out/completions.json
 
 # Or passing credentials via CLI
-python main.py \
+nanidao-evals \
   --evaluation-judge nani \
   --provider-urls "nani:https://nani.ooo/api/chat" \
   --provider-api-keys "nani:your-api-key" \
@@ -50,23 +64,23 @@ python main.py \
 ### Exploring Datasets
 ```bash
 # List available behaviors (default dataset: JBB)
-python main.py --list-behaviors
+nanidao-evals --list-behaviors
 
 # List categories in a specific dataset
-python main.py --completions-dataset NANI --list-categories
+nanidao-evals --completions-dataset NANI --list-categories
 
 # Show prompts that match specific criteria
-python main.py --show-prompts --dataset-category Hardware --completions-dataset NANI
+nanidao-evals --show-prompts --dataset-category Hardware --completions-dataset NANI
 ```
 
 ### Generating Completions
 
 ```bash
 # Generate completions from specific dataset
-python main.py --completions-dataset NANI
+nanidao-evals --completions-dataset NANI
 
 # Generate with multiple configurations
-python main.py \
+nanidao-evals \
   --providers nani \
   --config-file configs/multi_temp.json \
   --completions-dataset NANI
@@ -92,10 +106,10 @@ Example `configs/multi_temp.json`:
 
 ```bash
 # Generate and evaluate completions using Gemini
-python main.py --evaluation-judge gemini
+nanidao-evals --evaluation-judge gemini
 
 # Evaluate existing completions file
-python main.py --evaluation-judge anthropic --evaluate-file out/completions.json
+nanidao-evals --evaluation-judge anthropic --evaluate-file out/completions.json
 ```
 
 Datasets for generating completions are found in `data/datasets/jailbreaks_datasets.json`.
@@ -108,7 +122,7 @@ Prompts for generating evaluations are found in `data/prompts/eval_prompts.json`
 
 Generate completions using specific provider and model:
 ```bash
-python main.py \
+nanidao-evals \
   --providers nani \
   --provider-urls "nani:https://nani.ooo/api/chat" \
   --provider-models "nani:deepseek-r1-qwen-2.5-32B-ablated" \
@@ -119,7 +133,7 @@ python main.py \
 ### 2. Python API
 
 ```python
-from generators.completions import CompletionGenerator
+from nanidao_evals.generators.completions import CompletionGenerator
 
 # Configure providers
 provider_configs = {
@@ -167,7 +181,7 @@ response = handler.generate_response("Your prompt here")
 
 Generate completions for specific categories/behaviors:
 ```bash
-python main.py \
+nanidao-evals \
   --completions-dataset NANI \
   --dataset-category Hardware \
   --dataset-behavior Engineering
@@ -177,7 +191,7 @@ python main.py \
 
 Evaluate with specific model and prompt:
 ```bash
-python main.py \
+nanidao-evals \
   --evaluation-judge anthropic \
   --provider-models "anthropic:claude-3-5-sonnet-20241022" \
   --evaluation-prompt eval0_system_prompt
@@ -187,7 +201,7 @@ python main.py \
 
 Generate and evaluate in one run with filters:
 ```bash
-python main.py \
+nanidao-evals \
   --completions-dataset NANI \
   --evaluation-judge gemini \
   --dataset-category Hardware \
@@ -228,7 +242,7 @@ python main.py \
 | gemini    | gemini-2.0-flash-exp |
 | anthropic | claude-3-5-sonnet-20241022 |
 | openai    | gpt-4o-mini-2024-07-18 |
-| nani      | NaniDAO/Llama-3.3-70B-Instruct-ablated |
+| nani      | NaniDAO/deepseek-r1-qwen-2.5-32B-ablated |
 | huggingface | tgi |
 
 ## Project Structure
@@ -238,11 +252,8 @@ python main.py \
 /data
   /configs     - Model configurations
   /datasets    - Input datasets
-  /info        - Historical data
   /prompts     - Evaluation prompts
 /generators    - Core generation/evaluation logic
-/tests         - Test suite
-/utils         - Helper utilities
 ```
 
 ## Output Format
@@ -262,7 +273,7 @@ All providers can be configured either through environment variables in `.env` o
 
 ### HuggingFace
 ```bash
-python main.py \
+nanidao-evals \
   --providers huggingface \
   --provider-urls "huggingface:https://your-endpoint" \
   --provider-models "huggingface:your-model" \
@@ -271,7 +282,7 @@ python main.py \
 
 ### Nani
 ```bash
-python main.py \
+nanidao-evals \
   --providers nani \
   --provider-urls "nani:https://nani.ooo/api/chat" \
   --provider-models "nani:NaniDAO/deepseek-r1-qwen-2.5-32B-ablated"
@@ -279,7 +290,7 @@ python main.py \
 
 ### Multiple Providers
 ```bash
-python main.py \
+nanidao-evals \
   --providers nani huggingface \
   --provider-urls "nani:https://nani.ooo/api/chat" "huggingface:https://your-endpoint" \
   --provider-models "nani:model1" "huggingface:model2"

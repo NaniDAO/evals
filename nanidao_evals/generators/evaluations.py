@@ -1,9 +1,8 @@
 """Handles evaluation of completions using LLM judges."""
 from typing import List, Dict, Any, Optional, TypedDict
-import os
 import json
 from .base import BaseTestClass
-from apis.analyzer import create_handler, PROVIDERS
+from ..apis.analyzer import create_handler, PROVIDERS
 from .config import config
 
 class EvaluationResults(TypedDict):

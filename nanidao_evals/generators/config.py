@@ -1,6 +1,5 @@
 """Global configuration for the evaluation system."""
 from typing import Dict, Any, Optional
-import os
 import json
 from pathlib import Path
 
