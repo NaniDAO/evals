@@ -1,0 +1,14 @@
+include LICENSE
+include README.md
+include requirements.txt
+
+# Include only specific data directories
+recursive-include nanidao_evals/data/configs *
+recursive-include nanidao_evals/data/datasets *
+recursive-include nanidao_evals/data/prompts *
+
+# Exclude unnecessary files
+global-exclude *.pyc
+global-exclude __pycache__
+global-exclude *.pyo
+global-exclude .DS_Store
