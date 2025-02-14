@@ -235,6 +235,25 @@ def main():
     load_dotenv()
     args = parse_arguments()
     
+    if not any([
+        args.evaluate_file,
+        args.list_behaviors,
+        args.list_categories,
+        args.list_sources,
+        args.show_prompts,
+        args.completions_dataset,
+        args.evaluation_judge
+    ]):
+        print("\n⚠️ No action specified, exiting...")
+        print("Run with --help for usage instructions.\n")
+        print("You will need to specify at least one of the following:\n")
+        print("  1. --providers")
+        print("  2. --completions-dataset\n")
+        print("Or, if you want to evaluate completions:\n")
+        print("  3. --evaluate-file")
+        print("  4. --evaluation-judge\n")
+        return
+    
     # Handle feature listing and prompt inspection requests
     if any([args.list_behaviors, args.list_categories, args.list_sources, args.show_prompts]):
         try:
